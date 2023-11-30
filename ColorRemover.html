@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>色抜きアプリ</title>
+    <style>
+        #drop_zone {
+            width: 300px;
+            height: 200px;
+            border: 1px solid #aaaaaa;
+        }
+        img {
+            max-width: 300px;
+            max-height: 200px;
+        }
+    </style>
+</head>
+<body>
+    <div id="drop_zone">色抜きしたい画像をここにドラッグアンドドロップして下さい</div>
+    <output id="list"></output>
+    <img id="image_preview" src="#" alt="your image" />
+    <img id="image_result" src="#" alt="processed image" />
+    <button id="download_button" style="display: none;">白黒画像をダウンロード</button>
+
+    <script>
+        function handleFileSelect(evt) {
+            evt.stopPropagation();
+            evt.preventDefault();
+
+            var files = evt.dataTransfer.files;
+            for (var i = 0, f; f = files[i]; i++) {
+                if (!f.type.match('image.*')) {
+                    continue;
+                }
+                var reader = new FileReader();
+                reader.onload = (function(theFile) {
+                    return function(e) {
+                        document.getElementById('image_preview').src = e.target.result;
+                        var img = new Image();
+                        img.onload = function() {
+                            var canvas = document.createElement('canvas');
+                            var ctx = canvas.getContext('2d');
+                            canvas.width = img.width;
+                            canvas.height = img.height;
+                            ctx.drawImage(img, 0, 0, img.width, img.height);
+                            var imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                            var data = imageData.data;
+                            for(var i = 0; i < data.length; i += 4) {
+                                var max = Math.max(data[i], data[i + 1], data[i + 2]);
+                                data[i] = data[i + 1] = data[i + 2] = max;
+                            }
+                            ctx.putImageData(imageData, 0, 0);
+                            document.getElementById('image_result').src = canvas.toDataURL();
+                            document.getElementById('download_button').style.display = 'block';
+                        };
+                        img.src = e.target.result;
+                    };
+                })(f);
+                reader.readAsDataURL(f);
+            }
+        }
+
+        function handleDragOver(evt) {
+            evt.stopPropagation();
+            evt.preventDefault();
+            evt.dataTransfer.dropEffect = 'copy';
+        }
+
+        var dropZone = document.getElementById('drop_zone');
+        dropZone.addEventListener('dragover', handleDragOver, false);
+        dropZone.addEventListener('drop', handleFileSelect, false);
+
+        document.getElementById('download_button').addEventListener('click', function() {
+            var link = document.createElement('a');
+            link.download = 'processed_image.jpg';
+            link.href = document.getElementById('image_result').src;
+            link.click();
+        });
+    </script>
+</body>
+</html>
